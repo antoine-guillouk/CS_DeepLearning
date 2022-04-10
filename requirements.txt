@@ -1,0 +1,16 @@
+albumentations==1.1.0
+appdirs==1.4.4
+dlib==19.22.99
+matplotlib 
+numpy 
+opencv-python==4.5.5.62
+pandas==1.4.2
+Pillow==9.0.0
+python-dotenv==0.20.0
+scikit-image==0.19.2
+scikit-learn==1.0.2
+scipy==1.8.0
+segmentation-models-pytorch==0.2.1
+torch 
+torchvision 
+tqdm 
