@@ -13,6 +13,7 @@ import torchvision.datasets as dset
 import torchvision.transforms as transforms
 import torchvision.utils as vutils
 from torch.autograd import Variable
+import matplotlib.pyplot as plt
 
 from utils.img_dataset import ImgDataset
 from utils.augmentation import get__augmentation
@@ -25,7 +26,8 @@ ground_truth_dir = os.path.join(dataroot, 'train_unmasked')
 masked_img_dir = os.path.join(dataroot, 'train')
 mask_map_dir = os.path.join(dataroot,"train_labels")
 
-epochs=100
+resume_epoch=201
+epochs=resume_epoch + 100
 Batch_Size=64
 lr=0.0002
 beta1=0.5
@@ -61,14 +63,19 @@ def weights_init(m):
         m.bias.data.fill_(0)
 
 
-resume_epoch=0
+if os.path.exists("unmasking_antoine/result/generator.pt"):
+    netG = generator().to(device)
+    netG.load_state_dict(torch.load("unmasking_antoine/result/generator.pt"))
+else:
+    netG = generator().to(device)
+    netG.apply(weights_init)
 
-netG = generator()
-netG.apply(weights_init)
-
-
-netD = discriminator()
-netD.apply(weights_init)
+if os.path.exists("unmasking_antoine/result/discriminatorr.pt"):
+    netD = discriminator().to(device)
+    netD.load_state_dict(torch.load("unmasking_antoine/result/discriminator.pt"))
+else:
+    netD = discriminator().to(device)
+    netD.apply(weights_init)
 
 print(netG)
 print(netD)
@@ -97,6 +104,11 @@ label = Variable(label)
 
 optimizerD = optim.Adam(netD.parameters(), lr=lr, betas=(beta1, 0.999))
 optimizerG = optim.Adam(netG.parameters(), lr=lr, betas=(beta1, 0.999))
+
+
+G_losses = []
+D_losses = []
+
 
 for epoch in range(resume_epoch,epochs):
     for i, data in enumerate(dataloader, 0):
@@ -152,13 +164,29 @@ for epoch in range(resume_epoch,epochs):
               % (epoch, epochs, i, len(dataloader),
                  errD.data, errG_D.data,errG_l2.data, D_x,D_G_z1, ))
 
-        if i % 10 == 0:
+        G_losses.append(errG.item())
+        D_losses.append(errD.item())
+
+        if i == 0 and epoch % 10 == 0:
 
             vutils.save_image(real_cpu,
-                    'result/train/real/real_samples_epoch_%03d.png' % (epoch))
+                    'result/real/real_samples_epoch_%03d.png' % (epoch))
             vutils.save_image(input_masked.data,
-                    'result/train/cropped/cropped_samples_epoch_%03d.png' % (epoch))
+                    'result/cropped/cropped_samples_epoch_%03d.png' % (epoch))
             recon_image = input_masked.clone()
             recon_image.data = fake.data
             vutils.save_image(recon_image.data,
-                    'result/train/recon/recon_center_samples_epoch_%03d.png' % (epoch))
+                    'result/recon/recon_center_samples_epoch_%03d.png' % (epoch))
+
+            torch.save(netD.state_dict(), f"result/discriminator.pt")
+            torch.save(netG.state_dict(), f"result/generator.pt")
+
+
+plt.figure(figsize=(10,5))
+plt.title("Generator and Discriminator Loss During Training")
+plt.plot(G_losses,label="G")
+plt.plot(D_losses,label="D")
+plt.xlabel("iterations")
+plt.ylabel("Loss")
+plt.legend()
+plt.savefig(f"result/lossinv.png")
